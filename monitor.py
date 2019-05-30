@@ -78,7 +78,8 @@ def run_sample_task(agent, task, file_out='sample_data.txt'):
         writer = csv.writer(csvfile)
         writer.writerow(labels)
         while True:
-            rotor_speeds = agent.act()
+            state = agent.reset_episode()
+            rotor_speeds = agent.act(state)
             _, _, done = task.step(rotor_speeds)
             to_write = [task.sim.time] + list(task.sim.pose) + list(task.sim.v) + list(task.sim.angular_v) + list(
                 rotor_speeds)
@@ -122,7 +123,7 @@ def plot_euler_angles_velocities(results):
     _ = plt.ylim()
 
 
-def plot_choise_of_actions(results):
+def plot_choice_of_actions(results):
     plt.plot(results['time'], results['rotor_speed1'], label='Rotor 1 revolutions / second')
     plt.plot(results['time'], results['rotor_speed2'], label='Rotor 2 revolutions / second')
     plt.plot(results['time'], results['rotor_speed3'], label='Rotor 3 revolutions / second')
