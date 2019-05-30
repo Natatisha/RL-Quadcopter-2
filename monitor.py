@@ -3,23 +3,11 @@ import sys
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+import csv
+from task import Task
 
 
-def interact(task, agent, num_episodes=10000, max_episode_lenght=500, window=100):
-    """ Monitor agent's performance.
-
-    Params
-    ======
-    - env: instance of OpenAI Gym's Taxi-v1 environment
-    - agent: instance of class Agent (see Agent.py for details)
-    - num_episodes: number of episodes of agent-environment interaction
-    - window: number of episodes to consider when calculating average rewards
-
-    Returns
-    =======
-    - avg_rewards: deque containing average rewards
-    - best_avg_reward: largest value in the avg_rewards deque
-    """
+def interact(task, agent, num_episodes=10000, average_range=100, max_episode_lenght=500, window=100):
     # initialize average rewards
     avg_rewards = deque(maxlen=num_episodes)
     # initialize best average reward
@@ -52,7 +40,7 @@ def interact(task, agent, num_episodes=10000, max_episode_lenght=500, window=100
                 # save final sampled reward
                 samp_rewards.append(samp_reward)
                 break
-        if (i_episode >= 100):
+        if i_episode >= average_range:
             # get average reward from last 100 episodes
             avg_reward = np.mean(samp_rewards)
             # append to deque
@@ -77,3 +65,67 @@ def plot_rewards(avg_rewards):
     plt.ylabel('average reward')
     plt.plot(avg_rewards)
     plt.show()
+
+
+def run_sample_task(agent, task, file_out='sample_data.txt'):
+    labels = ['time', 'x', 'y', 'z', 'phi', 'theta', 'psi', 'x_velocity',
+              'y_velocity', 'z_velocity', 'phi_velocity', 'theta_velocity',
+              'psi_velocity', 'rotor_speed1', 'rotor_speed2', 'rotor_speed3', 'rotor_speed4']
+    results = {x: [] for x in labels}
+
+    # Run the simulation, and save the results.
+    with open(file_out, 'w') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(labels)
+        while True:
+            rotor_speeds = agent.act()
+            _, _, done = task.step(rotor_speeds)
+            to_write = [task.sim.time] + list(task.sim.pose) + list(task.sim.v) + list(task.sim.angular_v) + list(
+                rotor_speeds)
+            for ii in range(len(labels)):
+                results[labels[ii]].append(to_write[ii])
+            writer.writerow(to_write)
+            if done:
+                break
+    return results
+
+
+def plot_position(results):
+    plt.plot(results['time'], results['x'], label='x')
+    plt.plot(results['time'], results['y'], label='y')
+    plt.plot(results['time'], results['z'], label='z')
+    plt.legend()
+    _ = plt.ylim()
+
+
+def plot_velocity(results):
+    plt.plot(results['time'], results['x_velocity'], label='x_hat')
+    plt.plot(results['time'], results['y_velocity'], label='y_hat')
+    plt.plot(results['time'], results['z_velocity'], label='z_hat')
+    plt.legend()
+    _ = plt.ylim()
+
+
+def plot_euler_angles(results):
+    plt.plot(results['time'], results['phi'], label='phi')
+    plt.plot(results['time'], results['theta'], label='theta')
+    plt.plot(results['time'], results['psi'], label='psi')
+    plt.legend()
+    _ = plt.ylim()
+
+
+def plot_euler_angles_velocities(results):
+    plt.plot(results['time'], results['phi_velocity'], label='phi_velocity')
+    plt.plot(results['time'], results['theta_velocity'], label='theta_velocity')
+    plt.plot(results['time'], results['psi_velocity'], label='psi_velocity')
+    plt.legend()
+    _ = plt.ylim()
+
+
+def plot_choise_of_actions(results):
+    plt.plot(results['time'], results['rotor_speed1'], label='Rotor 1 revolutions / second')
+    plt.plot(results['time'], results['rotor_speed2'], label='Rotor 2 revolutions / second')
+    plt.plot(results['time'], results['rotor_speed3'], label='Rotor 3 revolutions / second')
+    plt.plot(results['time'], results['rotor_speed4'], label='Rotor 4 revolutions / second')
+    plt.legend()
+    _ = plt.ylim()
