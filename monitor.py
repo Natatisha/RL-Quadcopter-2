@@ -1,10 +1,8 @@
 from collections import deque
-import sys
 import math
 import numpy as np
 import matplotlib.pyplot as plt
 import csv
-from task import Task
 
 
 def interact(task, agent, num_episodes=10000, average_range=100, max_episode_lenght=500, window=100):
@@ -40,7 +38,7 @@ def interact(task, agent, num_episodes=10000, average_range=100, max_episode_len
                 # save final sampled reward
                 samp_rewards.append(samp_reward)
                 break
-        if i_episode >= average_range:
+        if i_episode % average_range == 0:
             # get average reward from last 100 episodes
             avg_reward = np.mean(samp_rewards)
             # append to deque
@@ -48,13 +46,9 @@ def interact(task, agent, num_episodes=10000, average_range=100, max_episode_len
             # update best average reward
             if avg_reward > best_avg_reward:
                 best_avg_reward = avg_reward
-        # monitor progress
-        print("\rEpisode {}/{} || Best average reward {}".format(i_episode, num_episodes, best_avg_reward), end="")
-        sys.stdout.flush()
-        # check if task is solved (according to OpenAI Gym)
-        if best_avg_reward >= 9.7:
-            print('\nEnvironment solved in {} episodes.'.format(i_episode), end="")
-            break
+            # monitor progress
+            print("\rEpisode {}/{} || Average reward {} || Best average reward {}"
+                  .format(i_episode, num_episodes, avg_reward, best_avg_reward))
         if i_episode == num_episodes: print('\n')
     return total_reward, avg_rewards, best_avg_reward
 
