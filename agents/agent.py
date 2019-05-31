@@ -33,7 +33,7 @@ class DDPG():
         # Noise process
         self.exploration_mu = 0
         self.exploration_theta = 0.15
-        self.exploration_sigma = 0.2  # probably should try 0.3 as told in paper
+        self.exploration_sigma = 0.3  # probably should try 0.3 as told in paper
         self.noise = OUNoise(self.action_size, self.exploration_mu, self.exploration_theta, self.exploration_sigma)
 
         # Replay memory
