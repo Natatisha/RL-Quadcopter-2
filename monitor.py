@@ -3,9 +3,12 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import csv
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import time
 
 
-def interact(task, agent, num_episodes=10000, average_range=100, max_episode_lenght=500, window=100):
+def interact(task, agent, num_episodes=10000, average_range=100, max_episode_length=1000, window=100):
     # initialize average rewards
     avg_rewards = deque(maxlen=num_episodes)
     # initialize best average reward
@@ -67,21 +70,21 @@ def run_sample_task(agent, task, file_out='sample_data.txt'):
               'psi_velocity', 'rotor_speed1', 'rotor_speed2', 'rotor_speed3', 'rotor_speed4']
     results = {x: [] for x in labels}
 
-    # Run the simulation, and save the results.
-    with open(file_out, 'w') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(labels)
-        while True:
-            state = agent.reset_episode()
-            rotor_speeds = agent.act(state)
-            _, _, done = task.step(rotor_speeds)
-            to_write = [task.sim.time] + list(task.sim.pose) + list(task.sim.v) + list(task.sim.angular_v) + list(
-                rotor_speeds)
-            for ii in range(len(labels)):
-                results[labels[ii]].append(to_write[ii])
-            writer.writerow(to_write)
-            if done:
-                break
+    animated_plot = AnimatedPlot()
+    state = agent.reset_episode()
+    total_reward = 0
+    while True:
+        animated_plot.plot(task)
+        action = agent.act(state)
+        next_state, reward, done = task.step(action)
+        to_write = [task.sim.time] + list(task.sim.pose) + list(task.sim.v) + list(task.sim.angular_v) + list(action)
+        for ii in range(len(labels)):
+            results[labels[ii]].append(to_write[ii])
+        total_reward += reward
+        state = next_state
+        if done:
+            print("Total episode reward : {}".format(total_reward))
+            break
     return results
 
 
@@ -124,3 +127,32 @@ def plot_choice_of_actions(results):
     plt.plot(results['time'], results['rotor_speed4'], label='Rotor 4 revolutions / second')
     plt.legend()
     _ = plt.ylim()
+
+
+class AnimatedPlot():
+    def __init__(self):
+        """Initialize parameters"""
+        self.X, self.Y, self.Z = [], [], []
+
+        self.fig = plt.figure(figsize=(14, 8))
+        self.ax = self.fig.add_subplot(111, projection='3d')
+
+    def plot(self, task, i_episode=None):
+        pose = task.sim.pose[:3]
+        self.X.append(pose[0])
+        self.Y.append(pose[1])
+        self.Z.append(pose[2])
+        self.ax.clear()
+        if i_episode:
+            plt.title("Episode {}".format(i_episode))
+
+        if len(self.X) > 1:
+            self.ax.scatter(self.X[:-1], self.Y[:-1], self.Z[:-1], c='k', alpha=0.3)
+        if task.sim.done and task.sim.runtime > task.sim.time:
+            # Colision
+            self.ax.scatter(pose[0], pose[1], pose[2], c='r', marker='*', linewidths=5)
+        else:
+            self.ax.scatter(pose[0], pose[1], pose[2], c='k', marker='s', linewidths=5)
+
+        self.fig.canvas.draw()
+        time.sleep(0.5)
