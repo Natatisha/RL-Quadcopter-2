@@ -16,7 +16,7 @@ class DDPG():
 
         # Actor (Policy) Model
         self.actor_local = Actor(self.state_size, self.action_size, self.action_low, self.action_high, 0.0001)
-        self.actor_target = Actor(self.state_size, self.action_size, self.action_low, self.action_high, 0.001)
+        self.actor_target = Actor(self.state_size, self.action_size, self.action_low, self.action_high, 0.0001)
 
         # Critic (Value) Model
         self.critic_local = Critic(self.state_size, self.action_size)
@@ -28,7 +28,7 @@ class DDPG():
 
         # Noise process
         self.exploration_mu = 0
-        self.exploration_theta = 0.3
+        self.exploration_theta = 0.15
         self.exploration_sigma = 0.3
         self.noise = OUNoise(self.action_size, self.exploration_mu, self.exploration_theta, self.exploration_sigma)
 
@@ -39,7 +39,7 @@ class DDPG():
 
         # Algorithm parameters
         self.gamma = 0.90  # discount factor
-        self.tau = 0.03  # for soft update of target parameters
+        self.tau = 0.003  # for soft update of target parameters
 
     def reset_episode(self):
         self.noise.reset()
