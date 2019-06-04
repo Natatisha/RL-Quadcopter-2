@@ -1,5 +1,5 @@
 import numpy as np
-from agents.helpers import OUNoise, ReplayBuffer
+from agents.helpers import OUNoise, PrioritizedReplayBuffer
 from agents.critic import Critic
 from agents.actor import Actor
 
@@ -7,7 +7,7 @@ from agents.actor import Actor
 class DDPG():
     """Reinforcement Learning agent that learns using DDPG."""
 
-    def __init__(self, task):
+    def __init__(self, task, num_episodes):
         self.task = task
         self.state_size = task.state_size
         self.action_size = task.action_size
@@ -35,7 +35,10 @@ class DDPG():
         # Replay memory
         self.buffer_size = 1000000
         self.batch_size = 64
-        self.memory = ReplayBuffer(self.buffer_size, self.batch_size)
+        self.prioritized_replay_alpha = 0.6
+        self.prioritized_replay_eps = 1e-6
+        self.prioritized_replay_betas = prioritized_experience_betas(num_episodes, 0.4)
+        self.memory = PrioritizedReplayBuffer(size=self.buffer_size, alpha=self.prioritized_replay_alpha)
 
         # Algorithm parameters
         self.gamma = 0.90  # discount factor
@@ -47,14 +50,18 @@ class DDPG():
         self.last_state = state
         return state
 
-    def step(self, action, reward, next_state, done):
+    def step(self, i_episode, action, reward, next_state, done):
         # Save experience / reward
         self.memory.add(self.last_state, action, reward, next_state, done)
 
         # Learn, if enough samples are available in memory
         if len(self.memory) > self.batch_size:
-            experiences = self.memory.sample()
-            self.learn(experiences)
+            # experiences = self.memory.sample()
+            states, actions, rewards, next_states, dones, weights, batch_idxes = \
+                self.memory.sample(self.batch_size, beta=self.prioritized_replay_betas[i_episode])
+            td_errors = self.learn(states, actions, rewards, dones, next_states)
+            new_priorities = np.abs(td_errors) + self.prioritized_replay_eps
+            self.memory.update_priorities(batch_idxes, new_priorities)
 
         # Roll over last state and action
         self.last_state = next_state
@@ -65,15 +72,15 @@ class DDPG():
         action = self.actor_local.model.predict(state)[0]
         return list(action + self.noise.sample())  # add some noise for exploration
 
-    def learn(self, experiences):
+    def learn(self, states, actions, rewards, dones, next_states):
         """Update policy and value parameters using given batch of experience tuples."""
         # Convert experience tuples to separate arrays for each element (states, actions, rewards, etc.)
-        states = np.vstack([e.state for e in experiences if e is not None])
-        actions = np.array([e.action for e in experiences if e is not None]).astype(np.float32).reshape(-1,
-                                                                                                        self.action_size)
-        rewards = np.array([e.reward for e in experiences if e is not None]).astype(np.float32).reshape(-1, 1)
-        dones = np.array([e.done for e in experiences if e is not None]).astype(np.uint8).reshape(-1, 1)
-        next_states = np.vstack([e.next_state for e in experiences if e is not None])
+        states = np.vstack(states)
+        actions = np.array(actions).astype(np.float32).reshape(-1,
+                                                               self.action_size)
+        rewards = np.array(rewards).astype(np.float32).reshape(-1, 1)
+        dones = np.array(dones).astype(np.uint8).reshape(-1, 1)
+        next_states = np.vstack(next_states)
 
         # Get predicted next-state actions and Q values from target models
         #     Q_targets_next = critic_target(next_state, actor_target(next_state))
@@ -93,6 +100,10 @@ class DDPG():
         self.soft_update(self.critic_local.model, self.critic_target.model)
         self.soft_update(self.actor_local.model, self.actor_target.model)
 
+        #TODO figure out the right way to compute them 
+        td_errors = Q_targets - self.critic_target.model.predict_on_batch([states, actions])
+        return td_errors
+
     def soft_update(self, local_model, target_model):
         """Soft update model parameters."""
         local_weights = np.array(local_model.get_weights())
@@ -102,3 +113,7 @@ class DDPG():
 
         new_weights = self.tau * local_weights + (1 - self.tau) * target_weights
         target_model.set_weights(new_weights)
+
+
+def prioritized_experience_betas(num_iters, initial_beta):
+    return [initial_beta + (min(float(t) / num_iters, 1.0)) * (1.0 - initial_beta) for t in range(1, num_iters + 1)]

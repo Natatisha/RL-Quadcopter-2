@@ -23,7 +23,7 @@ def interact(task, agent, num_episodes=10000):
             # agent performs the selected action
             next_state, reward, done = task.step(action)
             # agent performs internal updates based on sampled experience
-            agent.step(action, reward, next_state, done)
+            agent.step(i_episode, action, reward, next_state, done)
             # update the sampled reward
             samp_reward += reward
             # update the state (s <- s') to next time step
