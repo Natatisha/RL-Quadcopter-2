@@ -49,11 +49,11 @@ class Critic:
         net = layers.Activation('relu')(net)
 
         # Add more layers to the combined network if needed
-        # net = layers.Dense(units=128, activation='relu',
-        #                    kernel_regularizer=layers.regularizers.l2(0.001))(net)
+        # net = layers.Dense(units=128, activation='relu')(net)
         # net = layers.BatchNormalization()(net)
-        # net = layers.Dense(units=64, activation='relu',
-        #                    kernel_regularizer=layers.regularizers.l2(0.001))(net)
+        # net = layers.Dropout(0.2)(net)
+        # net = layers.Dense(units=64, activation='relu')(net)
+        # net = layers.Dropout(0.1)(net)
 
         # Add final output layer to prduce action values (Q values)
         Q_values = layers.Dense(units=1, name='q_values')(net)
