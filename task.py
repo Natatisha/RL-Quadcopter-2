@@ -16,6 +16,9 @@ class Task():
             runtime: time limit for each episode
             target_pos: target/goal (x,y,z) position for the agent
         """
+        # provide default init pose to avoid crashes
+        init_pose = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) if init_pose is None else init_pose
+
         # Simulation
         self.sim = PhysicsSim(init_pose, init_velocities, init_angle_velocities, runtime)
         self.action_repeat = 3
@@ -31,16 +34,19 @@ class Task():
         # Goal
         self.target_pos = target_pos if target_pos is not None else np.array([0., 0., 10.])
 
+        if self.sim.init_pose[2] >= self.target_pos[2]:
+            raise ValueError("Target z position must be higher than initial!")
+
     def get_reward(self):
         """Uses current pose of sim to return reward."""
         crash_penalty = self.get_crash_penalty()
 
-        target_reached_bonus = 20. if self.reached_target() else 0
-
-        rew_z = self.get_z_reward() if self.sim.pose[2] > self.sim.init_pose[2] else self.get_z_penalty()
-
-        # multiply by coefficient to stay focused on elevation
-        rew_z *= 3.
+        if self.reached_target():
+            rew_z = 5.
+        else:
+            rew_z = self.get_z_reward() if self.sim.pose[2] > self.sim.init_pose[2] else self.get_z_penalty()
+            # multiply by coefficient to stay focused on elevation
+            rew_z *= 3.
 
         xy_deviation = eucl_distance(self.sim.pose[:2], self.target_pos[:2])
         relative_deviation = xy_deviation / self.tolerable_xy_dev
@@ -51,7 +57,7 @@ class Task():
         ang_penalties += np.tanh(abs(self.sim.pose[4]))
         ang_penalties += np.tanh(abs(self.sim.pose[5]))
 
-        return rew_z - xy_deviation_penalty - ang_penalties + target_reached_bonus - crash_penalty
+        return rew_z - xy_deviation_penalty - ang_penalties - crash_penalty
 
     def get_z_penalty(self):
         # current distance is height below the start point
@@ -68,8 +74,8 @@ class Task():
     def reward_function(self, curr_distance, max_distance):
         return (curr_distance / max_distance) ** 0.4
 
-    def reached_target(self, threshold=10.):
-        return self.sim.pose[2] >= self.target_pos[2]  # and self.sim.pose[2] - self.target_pos[2] <= threshold
+    def reached_target(self):
+        return self.sim.pose[2] >= self.target_pos[2]
 
     def step(self, rotor_speeds):
         """Uses action to obtain next state, reward, done."""
@@ -101,9 +107,5 @@ class Task():
                 zip(self.sim.angular_accels, self.sim.moments_of_inertia)]
 
 
-def eucl_distance(a, b):
-    return np.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
-
-
-def distance(p1, p2):
-    return np.sqrt(np.power(p1 - p2, 2.))
+def eucl_distance(p1, p2):
+    return np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)

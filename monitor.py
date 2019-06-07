@@ -5,49 +5,58 @@ import matplotlib.pyplot as plt
 import time
 
 
-def interact(task, agent, num_episodes=10000):
-    # initialize best average reward
+def interact(task, agent, num_episodes=10000, window=20):
+    best_avg_reward = -math.inf
     best_reward = -math.inf
-    # initialize monitor for most recent rewards
-    episode_rewards = deque(maxlen=num_episodes)
 
-    # for each episode
+    episodes_rewards = deque(maxlen=num_episodes)
+    samp_rewards = deque(maxlen=window)
+
     for i_episode in range(1, num_episodes + 1):
-        # begin the episode
         state = agent.reset_episode()
-        # initialize the sampled reward
-        samp_reward = 0
+        episode_reward = 0
         while True:
             # agent selects an action
             action = agent.act(state)
-            # agent performs the selected action
             next_state, reward, done = task.step(action)
+            # agent performs the selected action
             # agent performs internal updates based on sampled experience
             agent.step(action, reward, next_state, done)
             # update the sampled reward
-            samp_reward += reward
+            episode_reward += reward
             # update the state (s <- s') to next time step
             state = next_state
             if done:
-                # save final sampled reward
-                episode_rewards.append(samp_reward)
+                episodes_rewards.append(episode_reward)
+                samp_rewards.append(episode_reward)
                 break
 
         # update best average reward
-        if samp_reward > best_reward:
-            best_reward = samp_reward
+        if episode_reward > best_reward:
+            best_reward = episode_reward
+
+        if i_episode >= 100:
+            # get average reward from last 150 episodes
+            avg_reward = np.mean(samp_rewards)
+            # update best average reward
+            if avg_reward > best_avg_reward:
+                best_avg_reward = avg_reward
+
+        if best_avg_reward >= 500.:
+            print("\nTask accomplished in {} episodes.".format(i_episode), end="")
+            break
 
         # monitor progress
         print("\rEpisode {}/{} || Reward {} || Best reward {} \nQuadcopter pose {}"
-              .format(i_episode, num_episodes, samp_reward, best_reward, task.sim.pose[:3], end=""))
+              .format(i_episode, num_episodes, episode_reward, best_reward, task.sim.pose[:3], end=""))
         if i_episode == num_episodes: print('\n')
-    return episode_rewards, best_reward
+    return episodes_rewards, best_reward
 
 
 def plot_rewards(avg_rewards):
     plt.figure(figsize=(20, 10))
-    plt.xlabel('episodes')
-    plt.ylabel('reward')
+    plt.xlabel("Episodes")
+    plt.ylabel("Rewards")
     plt.plot(avg_rewards)
     plt.show()
 
@@ -58,11 +67,11 @@ def run_sample_task(agent, task, file_out='sample_data.txt'):
               'psi_velocity', 'rotor_speed1', 'rotor_speed2', 'rotor_speed3', 'rotor_speed4']
     results = {x: [] for x in labels}
 
-    #animated_plot = AnimatedPlot()
+    # animated_plot = AnimatedPlot()
     state = agent.reset_episode()
     total_reward = 0
     while True:
-     #   animated_plot.plot(task)
+        #   animated_plot.plot(task)
         action = agent.act(state)
         next_state, reward, done = task.step(action)
         to_write = [task.sim.time] + list(task.sim.pose) + list(task.sim.v) + list(task.sim.angular_v) + list(action)
