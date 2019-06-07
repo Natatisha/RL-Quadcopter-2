@@ -42,7 +42,7 @@ def interact(task, agent, num_episodes=10000, window=20):
             if avg_reward > best_avg_reward:
                 best_avg_reward = avg_reward
 
-        if best_avg_reward >= 500.:
+        if best_avg_reward >= 900.:
             print("\nTask accomplished in {} episodes.".format(i_episode), end="")
             break
 
@@ -61,7 +61,7 @@ def plot_rewards(avg_rewards):
     plt.show()
 
 
-def run_sample_task(agent, task, file_out='sample_data.txt'):
+def run_sample_task(agent, task):
     labels = ['time', 'x', 'y', 'z', 'phi', 'theta', 'psi', 'x_velocity',
               'y_velocity', 'z_velocity', 'phi_velocity', 'theta_velocity',
               'psi_velocity', 'rotor_speed1', 'rotor_speed2', 'rotor_speed3', 'rotor_speed4']
